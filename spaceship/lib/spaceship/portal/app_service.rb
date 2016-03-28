@@ -26,7 +26,7 @@ module Spaceship
           @service_uri = "account/ios/identifiers/updatePushService.action"
         else
           # Default service URI
-          @service_uri = "account/ios/identifiers/updateService.action"
+          @service_uri = "https://developerservices2.apple.com/services/QH65B2/ios/updateAppId.action"
         end
       end
 

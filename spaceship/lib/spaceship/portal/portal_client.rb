@@ -112,44 +112,92 @@ module Spaceship
 
     def apps(mac: false)
       paging do |page_number|
-        r = request(:post, "account/#{platform_slug(mac)}/identifiers/listAppIds.action", {
-          teamId: team_id,
-          pageNumber: page_number,
-          pageSize: page_size,
-          sort: 'name=asc'
-        })
+        xmlBody="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\"><dict><key>teamId</key><string>#{team_id}</string></dict></plist>"
+        r = request(:post, "https://developerservices2.apple.com/services/QH65B2/#{platform_slug(mac)}/listAppIds.action", body=xmlBody)
+        # {
+        #   teamId: team_id,
+        #   pageNumber: page_number,
+        #   pageSize: page_size,
+        #   sort: 'name=asc'
+        # })
         parse_response(r, 'appIds')
       end
     end
 
     def details_for_app(app)
-      r = request(:post, "account/#{platform_slug(app.mac?)}/identifiers/getAppIdDetail.action", {
-        teamId: team_id,
-        appIdId: app.app_id
-      })
+      r = request(:post, "https://developerservices2.apple.com/services/QH65B2/ios/getAppIdDetail.action", "
+        <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>appIdId</key>
+        <string>#{app.app_id}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        </dict>
+        </plist>")
+      # {
+      #   teamId: team_id,
+      #   appIdId: app.app_id
+      # })
       parse_response(r, 'appId')
     end
 
-    def update_service_for_app(app, service)
-      request(:post, service.service_uri, {
-        teamId: team_id,
-        displayId: app.app_id,
-        featureType: service.service_id,
-        featureValue: service.value
-      })
+    def update_service_for_app(app_id, service)
+       r = request(:post, "https://developerservices2.apple.com/services/QH65B2/ios/updateAppId.action", 
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>appIdId</key>
+        <string>#{app_id}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        <key>displayId</key>
+        <string>#{app_id}</string>
+        <key>#{service.service_id}</key>
+        <string>#{service.value}</string>
+        </dict>
+        </plist>")
 
-      details_for_app(app)
+
+      # request(:post, service.service_uri, {
+      #   teamId: team_id,
+      #   displayId: app,
+      #   featureType: service.service_id,
+      #   featureValue: service.value
+      # })
+
+      parse_response(r, 'appId')
     end
 
-    def associate_groups_with_app(app, groups)
-      request(:post, 'account/ios/identifiers/assignApplicationGroupToAppId.action', {
-        teamId: team_id,
-        appIdId: app.app_id,
-        displayId: app.app_id,
-        applicationGroups: groups.map(&:app_group_id)
-      })
+    def associate_groups_with_app(app_id, group)
+      r = request(:post, "https://developerservices2.apple.com/services/QH65B2/ios/assignApplicationGroupToAppId.action", 
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>appIdId</key>
+        <string>#{app_id}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        <key>displayId</key>
+        <string>#{app_id}</string>
+        <key>applicationGroups</key>
+        <string>#{group}</string>
+        </dict>
+        </plist>")
 
-      details_for_app(app)
+      # {
+      #   teamId: team_id,
+      #   appIdId: app.app_id,
+      #   displayId: app.app_id,
+      #   applicationGroups: groups.map(&:app_group_id)
+      # })
+
+      parse_response(r, 'resultCode')
     end
 
     def create_app!(type, name, bundle_id, mac: false)
@@ -179,16 +227,43 @@ module Spaceship
       params.merge!(ident_params)
 
       ensure_csrf
-
-      r = request(:post, "account/#{platform_slug(mac)}/identifiers/addAppId.action", params)
+      xmlBody="
+      <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+      <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+      <plist version=\"1.0\">
+      <dict>
+      <key>appIdName</key>
+      <string>#{name}</string>
+      <key>appIdentifierString</key>
+      <string>#{bundle_id}</string>
+      <key>explicitIdentifier</key>
+      <string>#{bundle_id}</string>
+      <key>teamId</key>
+      <string>#{team_id}</string>
+      </dict>
+      </plist>"
+       
+      r = request(:post, "https://developerservices2.apple.com/services/QH65B2/#{platform_slug(mac)}/addAppId.action", xmlBody)
       parse_response(r, 'appId')
     end
 
     def delete_app!(app_id, mac: false)
-      r = request(:post, "account/#{platform_slug(mac)}/identifiers/deleteAppId.action", {
-        teamId: team_id,
-        appIdId: app_id
-      })
+      r = request(:post, "https://developerservices2.apple.com/services/QH65B2/#{platform_slug(mac)}/deleteAppId.action", "
+      <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+      <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+      <plist version=\"1.0\">
+      <dict>
+      <key>appIdId</key>
+      <string>#{app_id}</string>
+      <key>teamId</key>
+      <string>#{team_id}</string>
+      </dict>
+      </plist>")
+
+      # {
+      #   teamId: team_id,
+      #   appIdId: app_id
+      # })
       parse_response(r)
     end
 
@@ -198,30 +273,70 @@ module Spaceship
 
     def app_groups
       paging do |page_number|
-        r = request(:post, 'account/ios/identifiers/listApplicationGroups.action', {
-          teamId: team_id,
-          pageNumber: page_number,
-          pageSize: page_size,
-          sort: 'name=asc'
-        })
+        r = request(:post, "https://developerservices2.apple.com/services/QH65B2/ios/listApplicationGroups.action", 
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>pageNumber</key>
+        <string>#{page_number}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        <key>pageSize</key>
+        <string>#{page_size}</string>
+        <key>sort</key>
+        <string>#{name=asc}</string>
+        </dict>
+        </plist>")
+        # {
+        #   teamId: team_id,
+        #   pageNumber: page_number,
+        #   pageSize: page_size,
+        #   sort: 'name=asc'
+        # })
         parse_response(r, 'applicationGroupList')
       end
     end
 
     def create_app_group!(name, group_id)
-      r = request(:post, 'account/ios/identifiers/addApplicationGroup.action', {
-        name: name,
-        identifier: group_id,
-        teamId: team_id
-      })
+      r = request(:post, "https://developerservices2.apple.com/services/QH65B2/ios/addApplicationGroup.action", 
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+      <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+      <plist version=\"1.0\">
+      <dict>
+      <key>name</key>
+      <string>#{name}</string>
+      <key>identifier</key>
+      <string>#{group_id}</string>
+      <key>teamId</key>
+      <string>#{team_id}</string>
+      </dict>
+      </plist>")
+      # {
+      #   name: name,
+      #   identifier: group_id,
+      #   teamId: team_id
+      # })
       parse_response(r, 'applicationGroup')
     end
 
     def delete_app_group!(app_group_id)
-      r = request(:post, 'account/ios/identifiers/deleteApplicationGroup.action', {
-        teamId: team_id,
-        applicationGroup: app_group_id
-      })
+      r = request(:post, "https://developerservices2.apple.com/services/QH65B2/#{platform_slug(mac)}/deleteApplicationGroup.action", 
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        <key>applicationGroups</key>
+        <string>#{app_group_id}</string>
+        </dict>
+        </plist>")
+
+      # {
+      #   teamId: team_id,
+      #   applicationGroup: app_group_id
+      # })
       parse_response(r)
     end
 
@@ -231,38 +346,88 @@ module Spaceship
 
     def devices(mac: false)
       paging do |page_number|
-        r = request(:post, "account/#{platform_slug(mac)}/device/listDevices.action", {
-          teamId: team_id,
-          pageNumber: page_number,
-          pageSize: page_size,
-          sort: 'name=asc'
-        })
+        r = request(:post, "https://developerservices2.apple.com/services/QH65B2/#{platform_slug(mac)}/listDevices.action", "
+        <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>pageNumber</key>
+        <string>#{page_number}</string>
+        <key>pageSize</key>
+        <string>#{page_size}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        <key>sort</key>
+        <string>name=asc</string>
+        </dict>
+        </plist>")
+
+
+        #   teamId: team_id,
+        #   pageNumber: page_number,
+        #   pageSize: page_size,
+        #   sort: 'name=asc'
+        # })
         parse_response(r, 'devices')
       end
     end
 
     def devices_by_class(device_class)
       paging do |page_number|
-        r = request(:post, 'account/ios/device/listDevices.action', {
-          teamId: team_id,
-          pageNumber: page_number,
-          pageSize: page_size,
-          sort: 'name=asc',
-          deviceClasses: device_class
-        })
+        r = request(:post, "https://developerservices2.apple.com/services/QH65B2/#{platform_slug(mac)}/listDevices.action",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>deviceClasses</key>
+        <string>#{device_class}</string>
+        <key>pageNumber</key>
+        <string>#{page_number}</string>
+        <key>pageSize</key>
+        <string>#{page_size}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        <key>sort</key>
+        <string>name=asc</string>
+        </dict>
+        </plist>")
+
+
+        # " {
+        #   teamId: team_id,
+        #   pageNumber: page_number,
+        #   pageSize: page_size,
+        #   sort: 'name=asc',
+        #   deviceClasses: device_class
+        # })
         parse_response(r, 'devices')
       end
     end
 
     def create_device!(device_name, device_id, mac: false)
-      req = request(:post) do |r|
-        r.url "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/addDevice.action"
-        r.params = {
-          teamId: team_id,
-          deviceNumber: device_id,
-          name: device_name
-        }
-      end
+      # req = request(:post) do |r|
+        req = request(:post, "https://developerservices2.apple.com/services/QH65B2/#{platform_slug(mac)}/addDevice.action", "
+        <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>deviceNumber</key>
+        <string>#{device_id}</string>
+        <key>name</key>
+        <string>#{device_name}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        </dict>
+        </plist>")
+
+        # r.url "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/addDevice.action"
+        # r.params = {
+        #   teamId: team_id,
+        #   deviceNumber: device_id,
+        #   name: device_name
+        # }
+
+      #end
 
       parse_response(req, 'device')
     end
@@ -273,26 +438,52 @@ module Spaceship
 
     def certificates(types, mac: false)
       paging do |page_number|
-        r = request(:post, "account/#{platform_slug(mac)}/certificate/listCertRequests.action", {
-          teamId: team_id,
-          types: types.join(','),
-          pageNumber: page_number,
-          pageSize: page_size,
-          sort: 'certRequestStatusCode=asc'
-        })
-        parse_response(r, 'certRequests')
+        r = request(:post, "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/listAllDevelopmentCerts.action", 
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        </dict>
+        </plist>")
+        # {
+        #   teamId: team_id,
+        #   types: types.join(','),
+        #   pageNumber: page_number,
+        #   pageSize: page_size,
+        #   sort: 'certRequestStatusCode=asc'
+        # })
+        parse_response(r, 'certificates')
       end
     end
 
     def create_certificate!(type, csr, app_id = nil)
       ensure_csrf
 
-      r = request(:post, 'account/ios/certificate/submitCertificateRequest.action', {
-        teamId: team_id,
-        type: type,
-        csrContent: csr,
-        appIdId: app_id # optional
-      })
+      r = request(:post, "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/submitDevelopmentCSR.action", 
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>appIdId</key>
+        <string>#{app_id}</string>
+        <key>csrContent</key>
+        <string>#{csr}</string>
+        <key>type</key>
+        <string>#{type}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        </dict>
+        </plist>")
+      
+
+      #   {
+      #   teamId: team_id,
+      #   type: type,
+      #   csrContent: csr,
+      #   appIdId: app_id # optional
+      # })
       parse_response(r, 'certRequest')
     end
 
@@ -326,34 +517,94 @@ module Spaceship
     #####################################################
 
     def provisioning_profiles(mac: false)
-      req = request(:post) do |r|
-        r.url "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/listProvisioningProfiles.action"
-        r.params = {
-          teamId: team_id,
-          includeInactiveProfiles: true,
-          onlyCountLists: true
-        }
-      end
+      req = request(:post, "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/listProvisioningProfiles.action",
+       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>includeInactiveProfiles</key>
+        <string>true</string>
+        <key>onlyCountLists</key>
+        <string>true</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        </dict>
+        </plist>")
+
+     
+      #   ""
+      #   r.params = {
+      #     teamId: team_id,
+      #     includeInactiveProfiles: true,
+      #     onlyCountLists: true
+      #   }
+      # end
 
       parse_response(req, 'provisioningProfiles')
     end
 
-    def create_provisioning_profile!(name, distribution_method, app_id, certificate_ids, device_ids, mac: false)
+    def create_provisioning_profile_for_app_id!(app_id, mac: false)
       ensure_csrf
 
-      r = request(:post, "account/#{platform_slug(mac)}/profile/createProvisioningProfile.action", {
-        teamId: team_id,
-        provisioningProfileName: name,
-        appIdId: app_id,
-        distributionType: distribution_method,
-        certificateIds: certificate_ids,
-        deviceIds: device_ids
-      })
+      r = request(:post, "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/downloadTeamProvisioningProfile.action", 
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>appIdId</key>
+        <string>#{app_id}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        </dict>
+        </plist>")
+
+      # {
+      #   teamId: team_id,
+      #   provisioningProfileName: name,
+      #   appIdId: app_id,
+      #   distributionType: distribution_method,
+      #   certificateIds: certificate_ids,
+      #   deviceIds: device_ids
+      # })
+      parse_response(r, 'provisioningProfile')
+    end
+
+        def create_provisioning_profile!(name, distribution_method, app_id, certificate_ids, device_ids, mac: false)
+      ensure_csrf
+
+      r = request(:post, "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/createProvisioningProfile.action", 
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+        <plist version=\"1.0\">
+        <dict>
+        <key>distributionType</key>
+        <string>#{distribution_method}</string>
+        <key>appIdId</key>
+        <string>#{app_id}</string>
+        <key>deviceIds</key>
+        <string>#{device_ids}</string>
+        <key>certificateIds</key>
+        <string>#{certificate_ids}</string>
+        <key>provisioningProfileName</key>
+        <string>#{name}</string>
+        <key>teamId</key>
+        <string>#{team_id}</string>
+        </dict>
+        </plist>")
+
+      # {
+      #   teamId: team_id,
+      #   provisioningProfileName: name,
+      #   appIdId: app_id,
+      #   distributionType: distribution_method,
+      #   certificateIds: certificate_ids,
+      #   deviceIds: device_ids
+      # })
       parse_response(r, 'provisioningProfile')
     end
 
     def download_provisioning_profile(profile_id, mac: false)
-      r = request(:get, "account/#{platform_slug(mac)}/profile/downloadProfileContent", {
+      r = request(:post, "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/downloadProvisioningProfile.action", {
         teamId: team_id,
         provisioningProfileId: profile_id
       })
@@ -368,7 +619,7 @@ module Spaceship
     def delete_provisioning_profile!(profile_id, mac: false)
       ensure_csrf
 
-      r = request(:post, "account/#{platform_slug(mac)}/profile/deleteProvisioningProfile.action", {
+      r = request(:post, "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/deleteProvisioningProfile.action", {
         teamId: team_id,
         provisioningProfileId: profile_id
       })
@@ -376,7 +627,7 @@ module Spaceship
     end
 
     def repair_provisioning_profile!(profile_id, name, distribution_method, app_id, certificate_ids, device_ids, mac: false)
-      r = request(:post, "account/#{platform_slug(mac)}/profile/regenProvisioningProfile.action", {
+      r = request(:post, "https://developerservices2.apple.com/services/#{PROTOCOL_VERSION}/#{platform_slug(mac)}/regenProvisioningProfile.action", {
         teamId: team_id,
         provisioningProfileId: profile_id,
         provisioningProfileName: name,
