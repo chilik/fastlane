@@ -115,7 +115,7 @@ module Spaceship
           # for debugging only
           # This enables tracking of networking requests using Charles Web Proxy
           c.response :logger
-          c.proxy "https://127.0.0.1:8888"
+          c.proxy "https://127.0.0.1:8080"
         end
       end
     end
@@ -267,16 +267,22 @@ module Spaceship
     def request(method, url_or_path = nil, params = nil, headers = {}, &block)
       headers.merge!(csrf_tokens)
       headers['User-Agent'] = USER_AGENT
-
+      headers['X-Xcode-Version'] = '7.2.1 (7C1002)'
       # Before encoding the parameters, log them
-      log_request(method, url_or_path, params)
+      if !url_or_path.end_with?('.action') #|| url_or_path.end_with?('addAppId.action'))
+        log_request(method, url_or_path, params)
 
-      # form-encode the params only if there are params, and the block is not supplied.
-      # this is so that certain requests can be made using the block for more control
-      if method == :post && params && !block_given?
-        params, headers = encode_params(params, headers)
+        # form-encode the params only if there are params, and the block is not supplied.
+        # this is so that certain requests can be made using the block for more control
+        if method == :post && params && !block_given?
+          params, headers = encode_params(params, headers)
+        end
       end
-
+      
+      if url_or_path.end_with?('.action') && !url_or_path.end_with?('listTeams.action')
+        headers['Content-Type'] = 'text/x-xml-plist'
+      end
+      
       response = send_request(method, url_or_path, params, headers, &block)
 
       log_response(method, url_or_path, response)
